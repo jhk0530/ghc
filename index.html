@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tauri App</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <div class="auth-actions">
+      <div class="icon-wrap">
+        <button
+          type="button"
+          id="billing-link"
+          class="icon-button"
+          aria-label="Usage"
+          title="Usage"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M2.5 2.75a.75.75 0 0 0-1.5 0v18.5c0 .414.336.75.75.75H20a.75.75 0 0 0 0-1.5H2.5V2.75Z"
+              fill="currentColor"
+            />
+            <path
+              d="M22.28 7.78a.75.75 0 0 0-1.06-1.06l-5.72 5.72-3.72-3.72a.75.75 0 0 0-1.06 0l-6 6a.75.75 0 1 0 1.06 1.06l5.47-5.47 3.72 3.72a.75.75 0 0 0 1.06 0l6.25-6.25Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+        <span class="icon-tooltip">Usage</span>
+      </div>
+      <div class="icon-wrap">
+        <button
+          type="button"
+          id="github-auth"
+          class="icon-button is-off"
+          aria-label="Login with GitHub"
+          title="Login with GitHub"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M12 2.5a5.5 5.5 0 0 1 3.096 10.047 9.005 9.005 0 0 1 5.9 8.181.75.75 0 1 1-1.499.044 7.5 7.5 0 0 0-14.993 0 .75.75 0 0 1-1.5-.045 9.005 9.005 0 0 1 5.9-8.18A5.5 5.5 0 0 1 12 2.5ZM8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+        <span class="icon-tooltip" id="auth-label">Login</span>
+      </div>
+    </div>
+    <main class="container">
+      <form class="row" id="message-form">
+        <input
+          id="message-input"
+          type="text"
+          placeholder="Type a message..."
+          autocomplete="off"
+        />
+        <select id="model-select" aria-label="Model">
+          <option value="claude-sonnet-4.5">claude-sonnet-4.5 (1x)</option>
+          <option value="claude-haiku-4.5">claude-haiku-4.5 (0.33x)</option>
+          <option value="claude-opus-4.5">claude-opus-4.5 (3x)</option>          
+          <option value="gpt-5.2">gpt-5.2 (1x)</option>                              
+          <option value="gpt-5-mini" selected>gpt-5-mini (0x)</option>
+          <option value="gpt-4.1">gpt-4.1 (0x)</option>
+          <option value="gemini-3-pro-preview">gemini-3-pro-preview (1x)</option>
+        </select>
+        <button
+          type="button"
+          id="file-picker"
+          class="icon-button file-button"
+          aria-label="Add file context"
+          title="Add file context"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="24"
+            height="24"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path
+              d="M12 8.25a.75.75 0 0 1 .75.75v2.25H15a.75.75 0 0 1 0 1.5h-2.25V15a.75.75 0 0 1-1.5 0v-2.25H9a.75.75 0 0 1 0-1.5h2.25V9a.75.75 0 0 1 .75-.75Z"
+              fill="currentColor"
+            />
+            <path
+              d="M3 3a2 2 0 0 1 2-2h9.982a2 2 0 0 1 1.414.586l4.018 4.018A2 2 0 0 1 21 7.018V21a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3Zm2-.5a.5.5 0 0 0-.5.5v18a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V7.018a.5.5 0 0 0-.146-.354l-4.018-4.018a.5.5 0 0 0-.354-.146H5Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+        <button
+          type="submit"
+          id="send-button"
+          class="icon-button"
+          aria-label="Send"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M1.513 1.96a1.374 1.374 0 0 1 1.499-.21l19.335 9.215a1.147 1.147 0 0 1 0 2.07L3.012 22.25a1.374 1.374 0 0 1-1.947-1.46L2.49 12 1.065 3.21a1.375 1.375 0 0 1 .448-1.25Zm2.375 10.79-1.304 8.042L21.031 12 2.584 3.208l1.304 8.042h7.362a.75.75 0 0 1 0 1.5Z"
+              fill="currentColor"
+            />
+          </svg>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+        <span id="file-context" class="file-context is-hidden"></span>
+      </form>
+      <section class="output-wrap">
+        <div class="copy-wrap is-hidden">
+          <div class="icon-wrap">
+            <button
+              type="button"
+              id="copy-output"
+              class="icon-button copy-button"
+              aria-label="Copy output"
+              title="Copy output"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M7.024 3.75c0-.966.784-1.75 1.75-1.75H20.25c.966 0 1.75.784 1.75 1.75v11.498a1.75 1.75 0 0 1-1.75 1.75H8.774a1.75 1.75 0 0 1-1.75-1.75Zm1.75-.25a.25.25 0 0 0-.25.25v11.498c0 .139.112.25.25.25H20.25a.25.25 0 0 0 .25-.25V3.75a.25.25 0 0 0-.25-.25Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M1.995 10.749a1.75 1.75 0 0 1 1.75-1.751H5.25a.75.75 0 1 1 0 1.5H3.745a.25.25 0 0 0-.25.25L3.5 20.25c0 .138.111.25.25.25h9.5a.25.25 0 0 0 .25-.25v-1.51a.75.75 0 1 1 1.5 0v1.51A1.75 1.75 0 0 1 13.25 22h-9.5A1.75 1.75 0 0 1 2 20.25l-.005-9.501Z"
+                  fill="currentColor"
+                />
+              </svg>
+              <svg
+                class="check-icon"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M21.03 5.72a.75.75 0 0 1 0 1.06l-11.5 11.5a.747.747 0 0 1-1.072-.012l-5.5-5.75a.75.75 0 1 1 1.084-1.036l4.97 5.195L19.97 5.72a.75.75 0 0 1 1.06 0Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <span class="icon-tooltip">Copy</span>
+          </div>
+          <div class="icon-wrap">
+            <button
+              type="button"
+              id="toggle-history"
+              class="icon-button history-toggle"
+              aria-label="Show history"
+              title="Show history"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  d="M11.998 2.5A9.503 9.503 0 0 0 3.378 8H5.75a.75.75 0 0 1 0 1.5H2a1 1 0 0 1-1-1V4.75a.75.75 0 0 1 1.5 0v1.697A10.997 10.997 0 0 1 11.998 1C18.074 1 23 5.925 23 12s-4.926 11-11.002 11C6.014 23 1.146 18.223 1 12.275a.75.75 0 0 1 1.5-.037 9.5 9.5 0 0 0 9.498 9.262c5.248 0 9.502-4.253 9.502-9.5s-4.254-9.5-9.502-9.5Z"
+                  fill="currentColor"
+                />
+                <path
+                  d="M12.5 7.25a.75.75 0 0 0-1.5 0v5.5c0 .27.144.518.378.651l3.5 2a.75.75 0 0 0 .744-1.302L12.5 12.315V7.25Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <span class="icon-tooltip">History</span>
+          </div>
+        </div>
+        <section id="output" class="output" aria-live="polite"></section>
+        <section
+          id="history"
+          class="history is-hidden"
+          aria-live="polite"
+          hidden
+        ></section>
+      </section>
+      <p id="auth-status" aria-live="polite"></p>
+    </main>
+    <footer class="footer">
+      <span id="copilot-version" aria-live="polite"></span>
+      <a
+        class="footer-link"
+        href="https://github.com/jhk0530"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Share this project
+      </a>
+    </footer>
+  </body>
+</html>
