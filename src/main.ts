@@ -38,6 +38,8 @@ window.addEventListener("DOMContentLoaded", () => {
     })();
   const installCopilotButton =
     document.querySelector<HTMLButtonElement>("#install-copilot");
+  const reloadAppButton =
+    document.querySelector<HTMLButtonElement>("#reload-app");
   const copyWrap =
     document.querySelector<HTMLElement>(".copy-wrap") ??
     (() => {
@@ -92,12 +94,24 @@ window.addEventListener("DOMContentLoaded", () => {
   let isRunning = false;
   let contextPath: string | null = null;
   let contextName: string | null = null;
+  const setPromptEnabled = (enabled: boolean) => {
+    inputEl && (inputEl.disabled = !enabled);
+    sendButton && (sendButton.disabled = !enabled);
+    modelSelect && (modelSelect.disabled = !enabled);
+    fileButton && (fileButton.disabled = !enabled);
+  };
   const setCopyVisible = (visible: boolean) => {
     copyWrap.hidden = !visible;
     copyWrap.classList.toggle("is-hidden", !visible);
     copyWrap.classList.toggle("is-visible", visible);
   };
   setCopyVisible(false);
+  const setReloadVisible = (visible: boolean) => {
+    if (!reloadAppButton) return;
+    reloadAppButton.hidden = !visible;
+    reloadAppButton.classList.toggle("is-hidden", !visible);
+  };
+  setReloadVisible(false);
   const historyTooltip = historyToggle
     ?.closest(".icon-wrap")
     ?.querySelector<HTMLElement>(".icon-tooltip");
@@ -142,23 +156,29 @@ window.addEventListener("DOMContentLoaded", () => {
       if (status.has_token) {
         authButton?.classList.remove("is-off");
         authButton?.classList.add("is-on");
+        authButton?.classList.remove("needs-login");
         authButton?.setAttribute("aria-label", "Logout");
         authButton?.setAttribute("title", "Logout");
         if (authLabel) authLabel.textContent = "Logout";
+        setPromptEnabled(true);
       } else {
         authButton?.classList.remove("is-on");
         authButton?.classList.add("is-off");
+        authButton?.classList.add("needs-login");
         authButton?.setAttribute("aria-label", "Login with GitHub");
         authButton?.setAttribute("title", "Login with GitHub");
         if (authLabel) authLabel.textContent = "Login";
+        setPromptEnabled(false);
       }
     } catch {
       hasToken = false;
       authButton?.classList.remove("is-on");
       authButton?.classList.add("is-off");
+        authButton?.classList.add("needs-login");
       authButton?.setAttribute("aria-label", "Login with GitHub");
       authButton?.setAttribute("title", "Login with GitHub");
       if (authLabel) authLabel.textContent = "Login";
+      setPromptEnabled(false);
     }
   };
 
@@ -348,6 +368,9 @@ window.addEventListener("DOMContentLoaded", () => {
       const message = await invoke<string>("install_copilot_cli");
       authStatusEl.textContent = message;
       await refreshCopilotStatus();
+      if (message.toLowerCase().includes("installed via winget")) {
+        setReloadVisible(true);
+      }
     } catch (error) {
       authStatusEl.textContent =
         error instanceof Error
@@ -356,6 +379,10 @@ window.addEventListener("DOMContentLoaded", () => {
     } finally {
       installCopilotButton.disabled = false;
     }
+  });
+
+  reloadAppButton?.addEventListener("click", () => {
+    window.location.reload();
   });
 
   void (async () => {
