@@ -388,6 +388,19 @@ h1 {
   color: #555;
 }
 
+.footer-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.footer-button {
+  padding: 0.35em 0.8em;
+  font-size: 0.9em;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
 .footer-link {
   color: #555;
 }

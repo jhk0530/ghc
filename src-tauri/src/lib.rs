@@ -18,6 +18,13 @@ struct CopilotResult {
     context_path: Option<String>,
 }
 
+#[derive(Serialize)]
+struct CopilotStatus {
+    installed: bool,
+    version: Option<String>,
+    path: Option<String>,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RunCopilotArgs {
@@ -30,7 +37,7 @@ struct RunCopilotArgs {
 async fn run_copilot(args: RunCopilotArgs) -> Result<CopilotResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let token = resolve_github_token();
-        let mut command = std::process::Command::new("copilot");
+        let mut command = copilot_command();
         let mut temp_path: Option<String> = None;
         let context_path_for_debug = args.context_path.clone();
         let full_prompt = match args.context_path.as_ref() {
@@ -100,7 +107,7 @@ async fn run_copilot(args: RunCopilotArgs) -> Result<CopilotResult, String> {
 #[tauri::command]
 async fn get_copilot_version() -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let output = std::process::Command::new("copilot")
+        let output = copilot_command()
             .arg("--version")
             .output()
             .map_err(|err| format!("Failed to run copilot: {err}"))?;
@@ -114,6 +121,83 @@ async fn get_copilot_version() -> Result<String, String> {
     })
     .await
     .map_err(|err| format!("Failed to run copilot: {err}"))?
+}
+
+#[tauri::command]
+async fn get_copilot_status() -> Result<CopilotStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if let Ok(output) = copilot_command().arg("--version").output() {
+            if output.status.success() {
+                let version =
+                    String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let path = resolve_copilot_path()
+                    .map(|path| path.display().to_string());
+                return Ok(CopilotStatus {
+                    installed: true,
+                    version: Some(version),
+                    path,
+                });
+            }
+        }
+
+        let path = resolve_copilot_path()
+            .map(|path| path.display().to_string());
+        Ok(CopilotStatus {
+            installed: path.is_some(),
+            version: None,
+            path,
+        })
+    })
+    .await
+    .map_err(|err| format!("Failed to check copilot: {err}"))?
+}
+
+#[tauri::command]
+async fn install_copilot_cli() -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if cfg!(target_os = "macos") {
+            if !command_available("brew", &["--version"]) {
+                return Err(
+                    "Homebrew not found. Install it from https://brew.sh."
+                        .to_string(),
+                );
+            }
+            let output = std::process::Command::new("brew")
+                .arg("install")
+                .arg("copilot-cli")
+                .output()
+                .map_err(|err| format!("Failed to run brew: {err}"))?;
+            if output.status.success() {
+                return Ok("Copilot CLI installed via Homebrew.".to_string());
+            }
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(stderr.trim().to_string());
+        }
+
+        if cfg!(target_os = "windows") {
+            if !command_available("winget", &["--version"]) {
+                return Err(
+                    "winget not found. Install App Installer from the Microsoft Store."
+                        .to_string(),
+                );
+            }
+            let output = std::process::Command::new("winget")
+                .arg("install")
+                .arg("GitHub.Copilot")
+                .output()
+                .map_err(|err| format!("Failed to run winget: {err}"))?;
+            if output.status.success() {
+                return Ok("Copilot CLI installed via winget.".to_string());
+            }
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(stderr.trim().to_string());
+        }
+
+        Err("Copilot install is only supported on macOS and Windows."
+            .to_string())
+    })
+    .await
+    .map_err(|err| format!("Failed to install copilot: {err}"))?
 }
 
 #[tauri::command]
@@ -164,6 +248,78 @@ fn get_token_status() -> TokenStatus {
         has_token: false,
         tail: None,
     }
+}
+
+fn command_available(command: &str, args: &[&str]) -> bool {
+    std::process::Command::new(command)
+        .args(args)
+        .output()
+        .is_ok()
+}
+
+fn resolve_copilot_path() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        let candidates = [
+            "/opt/homebrew/bin/copilot",
+            "/usr/local/bin/copilot",
+            "/opt/local/bin/copilot",
+        ];
+        for candidate in candidates {
+            let path = PathBuf::from(candidate);
+            if path.exists() {
+                return Some(path);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(output) = std::process::Command::new("where")
+            .arg("copilot")
+            .output()
+        {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                if let Some(first) = stdout.lines().next() {
+                    let trimmed = first.trim();
+                    if !trimmed.is_empty() {
+                        return Some(PathBuf::from(trimmed));
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
+fn augmented_path() -> String {
+    let current = env::var("PATH").unwrap_or_default();
+    let separator = if cfg!(target_os = "windows") { ";" } else { ":" };
+    let mut extra: Vec<&str> = Vec::new();
+    if cfg!(target_os = "macos") {
+        extra.push("/opt/homebrew/bin");
+        extra.push("/usr/local/bin");
+    }
+    if extra.is_empty() {
+        return current;
+    }
+    if current.is_empty() {
+        return extra.join(separator);
+    }
+    format!("{}{}{}", extra.join(separator), separator, current)
+}
+
+fn copilot_command() -> std::process::Command {
+    let command_path =
+        resolve_copilot_path().unwrap_or_else(|| PathBuf::from("copilot"));
+    let mut command = std::process::Command::new(command_path);
+    let path = augmented_path();
+    if !path.is_empty() {
+        command.env("PATH", path);
+    }
+    command
 }
 
 #[derive(Clone, Serialize)]
@@ -363,6 +519,8 @@ pub fn run() {
             greet,
             run_copilot,
             get_copilot_version,
+            get_copilot_status,
+            install_copilot_cli,
             start_github_login,
             has_github_token,
             get_token_status,

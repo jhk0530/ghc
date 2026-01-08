@@ -36,6 +36,8 @@ window.addEventListener("DOMContentLoaded", () => {
       document.querySelector("footer")?.appendChild(created);
       return created;
     })();
+  const installCopilotButton =
+    document.querySelector<HTMLButtonElement>("#install-copilot");
   const copyWrap =
     document.querySelector<HTMLElement>(".copy-wrap") ??
     (() => {
@@ -116,7 +118,7 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   setHistoryVisible(false);
 
-  const appendHistory = (promptText: string, outputText: string) => {
+  const appendHistory = async (promptText: string, outputText: string) => {
     const item = document.createElement("article");
     item.classList.add("history-item");
     const promptEl = document.createElement("p");
@@ -124,7 +126,9 @@ window.addEventListener("DOMContentLoaded", () => {
     promptEl.textContent = promptText;
     const outputBlock = document.createElement("div");
     outputBlock.classList.add("history-output");
-    outputBlock.innerHTML = DOMPurify.sanitize(marked.parse(outputText));
+    outputBlock.innerHTML = DOMPurify.sanitize(
+      await marked.parse(outputText),
+    );
     item.append(promptEl, outputBlock);
     historyEl.appendChild(item);
   };
@@ -199,9 +203,6 @@ window.addEventListener("DOMContentLoaded", () => {
     setCopyVisible(false);
     copyButton.classList.remove("is-copied");
     try {
-      const fullPrompt = contextLabel
-        ? `${prompt} ${contextLabel}`
-        : prompt;
       const result = await invoke<{
         output: string;
         temp_path?: string | null;
@@ -215,13 +216,13 @@ window.addEventListener("DOMContentLoaded", () => {
       });
       lastOutput = result.output ?? "";
       const rendered = result
-        ? DOMPurify.sanitize(marked.parse(result.output))
+        ? DOMPurify.sanitize(await marked.parse(result.output))
         : "(no output)";
       if (result) {
         outputEl.innerHTML = rendered;
         if (lastOutput.trim()) {
           setCopyVisible(true);
-          appendHistory(promptForHistory, lastOutput);
+          await appendHistory(promptForHistory, lastOutput);
         } else {
           setCopyVisible(false);
         }
@@ -317,17 +318,49 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  void (async () => {
-    await updateTokenStatus();
+  const refreshCopilotStatus = async () => {
     try {
-      const version = await invoke<string>("get_copilot_version");
-      const match = version.match(/\d+\.\d+\.\d+/);
-      versionEl.textContent = match
-        ? `copilot ${match[0]}`
-        : "copilot";
+      const status = await invoke<{
+        installed: boolean;
+        version: string | null;
+        path: string | null;
+      }>("get_copilot_status");
+      if (status.installed) {
+        const match = status.version?.match(/\d+\.\d+\.\d+/);
+        versionEl.textContent = match
+          ? `copilot ${match[0]}`
+          : "copilot";
+        installCopilotButton?.classList.add("is-hidden");
+      } else {
+        versionEl.textContent = "copilot not installed";
+        installCopilotButton?.classList.remove("is-hidden");
+      }
     } catch {
       versionEl.textContent = "copilot";
+      installCopilotButton?.classList.remove("is-hidden");
     }
+  };
+
+  installCopilotButton?.addEventListener("click", async () => {
+    installCopilotButton.disabled = true;
+    authStatusEl.textContent = "Installing Copilot CLI...";
+    try {
+      const message = await invoke<string>("install_copilot_cli");
+      authStatusEl.textContent = message;
+      await refreshCopilotStatus();
+    } catch (error) {
+      authStatusEl.textContent =
+        error instanceof Error
+          ? error.message
+          : String(error ?? "Copilot install failed.");
+    } finally {
+      installCopilotButton.disabled = false;
+    }
+  });
+
+  void (async () => {
+    await updateTokenStatus();
+    await refreshCopilotStatus();
   })();
 
   copyButton.addEventListener("click", async () => {
