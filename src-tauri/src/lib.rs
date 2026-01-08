@@ -56,18 +56,19 @@ async fn run_copilot(args: RunCopilotArgs) -> Result<CopilotResult, String> {
                     .file_name()
                     .and_then(|name| name.to_str())
                     .unwrap_or(path);
-                let cwd = env::current_dir()
-                    .map_err(|err| format!("Failed to resolve current dir: {err}"))?;
+                let temp_root = env::temp_dir().join("ghc");
+                fs::create_dir_all(&temp_root)
+                    .map_err(|err| format!("Failed to create temp dir: {err}"))?;
                 let stamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .map_err(|err| format!("Failed to generate temp name: {err}"))?
                     .as_millis();
                 let temp_name = format!(".copilot-context-{stamp}-{file_name}");
-                let temp_file = cwd.join(&temp_name);
+                let temp_file = temp_root.join(&temp_name);
                 fs::copy(&path_buf, &temp_file)
                     .map_err(|err| format!("Failed to copy context file: {err}"))?;
                 temp_path = Some(temp_file.display().to_string());
-                format!("{} ./{temp_name}", args.prompt)
+                format!("{} {}", args.prompt, temp_file.display())
             }
             _ => args.prompt,
         };
@@ -587,7 +588,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::Destroyed = event {
-                if let Ok(dir) = env::current_dir() {
+                let dir = env::temp_dir().join("ghc");
+                if dir.exists() {
                     if let Ok(entries) = fs::read_dir(dir) {
                         for entry in entries.flatten() {
                             let path = entry.path();
