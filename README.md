@@ -60,7 +60,9 @@ flowchart TD
 
 ## Installation
 
-- Download & Install from [release page](https://github.com/jhk0530/ghc/releases)
+[![Windows](https://custom-icon-badges.demolab.com/badge/-Windows-0078D6?style=for-the-badge&logo=windows11)](https://github.com/jhk0530/ghc/releases/download/v0.1.0/ghc_0.1.0_x64_en-US.msi)
+
+[![MacOS](https://img.shields.io/badge/-MacOS-0078D6?style=for-the-badge&logo=apple)](https://github.com/jhk0530/ghc/releases/download/v0.1.0/ghc_0.1.0_aarch64.dmg)
 
 ## Pre-requisites
 
